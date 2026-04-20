@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SR바이오텍 AX 진행도</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 24px; }
+  .banner { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 14px; padding: 20px 24px; color: #fff; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 16px; }
+  .banner-left p:first-child { font-size: 12px; opacity: 0.8; }
+  .banner-left p:last-child { font-size: 38px; font-weight: 700; }
+  .banner-right { text-align: right; }
+  .banner-right p:first-child { font-size: 12px; opacity: 0.8; }
+  .banner-right p:last-child { font-size: 20px; font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; }
+  .stat label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+  .stat .val { font-size: 26px; font-weight: 600; }
+  .stat .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .progress-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; font-weight: 600; }
+  .progress-bar-bg { background: #e2e8f0; border-radius: 99px; height: 12px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 99px; background: #6366f1; transition: width 0.8s ease; }
+  .progress-footer { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #94a3b8; }
+  .section { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section h2 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+  .section p.desc { font-size: 12px; color: #94a3b8; margin-top: -12px; margin-bottom: 14px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  canvas { max-height: 280px; }
+  .refresh-btn { position: fixed; bottom: 24px; right: 24px; background: #6366f1; color: #fff; border: none; border-radius: 50px; padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
+  .refresh-btn:hover { background: #4f46e5; }
+  .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 16px; }
+  @media(max-width: 600px) { .stats { grid-template-columns: 1fr 1fr; } .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>SR바이오텍 AX 진행도</h1>
+  <p class="subtitle" id="subtitle">데이터 불러오는 중...</p>
+
+  <div id="dashboard" style="display:none">
+    <!-- D+ 배너 -->
+    <div class="banner">
+      <div class="banner-left">
+        <p>2026년 4월 13일 전사 발표 이후</p>
+        <p id="d-day">D+0</p>
+      </div>
+      <div class="banner-right">
+        <p>80% 달성 예측</p>
+        <p id="predict80">집계 중</p>
+      </div>
+    </div>
+
+    <!-- 핵심 지표 -->
+    <div class="stats">
+      <div class="stat">
+        <label>전체 인원</label>
+        <div class="val" id="s-total" style="color:#1e293b">-</div>
+        <div class="sub">SRbiotek 전체</div>
+      </div>
+      <div class="stat">
+        <label>AX 완료</label>
+        <div class="val" id="s-done" style="color:#22c55e">-</div>
+        <div class="sub" id="s-done-rate">달성율 0%</div>
+      </div>
+      <div class="stat">
+        <label>진행 중</label>
+        <div class="val" id="s-progress" style="color:#f59e0b">-</div>
+        <div class="sub" id="s-progress-rate">0%</div>
+      </div>
+      <div class="stat">
+        <label>엑스칼리버</label>
+        <div class="val" id="s-caliber" style="color:#6366f1">-</div>
+        <div class="sub">미션 3개 완료</div>
+      </div>
+    </div>
+
+    <!-- 80% 프로그레스 -->
+    <div class="progress-card">
+      <div class="progress-header">
+        <span>🎯 80% 달성 목표</span>
+        <span id="prog-text">0 / 0명</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar" id="prog-bar" style="width:0%"></div>
+      </div>
+      <div class="progress-footer">
+        <span id="prog-left">현재 0%</span>
+        <span id="prog-right">0명 더 필요</span>
+      </div>
+    </div>
+
+    <!-- 캠퍼스별 -->
+    <div class="section">
+      <h2>🏢 캠퍼스별 달성 현황</h2>
+      <canvas id="chart-campus"></canvas>
+    </div>
+
+    <!-- 팀별 -->
+    <div class="section">
+      <h2>👥 팀별 달성 현황</h2>
+      <canvas id="chart-team"></canvas>
+    </div>
+
+    <!-- 성별 / 나이대 -->
+    <div class="grid2">
+      <div class="section">
+        <h2>⚧ 성별 분포</h2>
+        <canvas id="chart-gender"></canvas>
+      </div>
+      <div class="section">
+        <h2>🎂 나이대 분포</h2>
+        <canvas id="chart-age"></canvas>
+      </div>
+    </div>
+
+    <!-- 나이대별 달성 -->
+    <div class="section">
+      <h2>📊 나이대별 달성 현황</h2>
+      <p class="desc">나이대가 AX 진행율과 연관이 있을까요?</p>
+      <canvas id="chart-age-ax"></canvas>
+    </div>
+
+    <!-- 성별별 달성 -->
+    <div class="section">
+      <h2>📊 성별 달성 현황</h2>
+      <p class="desc">성별이 AX 진행율과 연관이 있을까요?</p>
+      <canvas id="chart-gender-ax"></canvas>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">⏳ 구글 시트 데이터 불러오는 중...</div>
+</div>
+
+<button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
+
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUgphREayIxDwBkFflbSlMGHoed_7buV1SuDUjI9KPEZGwqxhzTky1NuIyiBYOvMeoRMlLWYT5fAAa/pub?output=csv";
+const LAUNCH = new Date("2026-04-13");
+
+// 컬럼 인덱스 (순서 기반 - 인코딩 문제 우회)
+const COL = { name:0, birth:1, gender:2, hire:3, ax:4, caliber:5, campus:6, team:7 };
+const COLORS6 = ["#6366f1","#22c55e","#f59e0b","#ec4899","#06b6d4","#8b5cf6","#84cc16","#f97316"];
+
+let charts = {};
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  return lines.slice(1).map(line => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (let c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  }).filter(r => r.length > 2 && r[COL.name]);
+}
+
+function getAge(birth) {
+  if (!birth) return "미상";
+  const b = new Date(birth);
+  if (isNaN(b)) return "미상";
+  const age = new Date().getFullYear() - b.getFullYear();
+  if (age < 30) return "20대"; if (age < 40) return "30대";
+  if (age < 50) return "40대"; if (age < 60) return "50대";
+  return "60대+";
+}
+
+function axByKey(rows, keyIdx, axIdx) {
+  const g = {};
+  rows.forEach(r => {
+    const k = r[keyIdx] || "미정";
+    if (!g[k]) g[k] = { done:0, ing:0, none:0 };
+    const ax = (r[axIdx] || "").trim();
+    if (ax === "완료") g[k].done++;
+    else if (ax) g[k].ing++;
+    else g[k].none++;
+  });
+  const entries = Object.entries(g).sort((a,b) => (b[1].done+b[1].ing+b[1].none) - (a[1].done+a[1].ing+a[1].none));
+  return {
+    labels: entries.map(e => e[0]),
+    done: entries.map(e => e[1].done),
+    ing: entries.map(e => e[1].ing),
+    none: entries.map(e => e[1].none),
+  };
+}
+
+function groupCount(rows, keyIdx) {
+  const c = {};
+  rows.forEach(r => { const k = r[keyIdx] || "미정"; c[k] = (c[k]||0)+1; });
+  const entries = Object.entries(c).sort((a,b)=>b[1]-a[1]);
+  return { labels: entries.map(e=>e[0]), values: entries.map(e=>e[1]) };
+}
+
+function makeBarH(id, data) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext("2d");
+  charts[id] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label:"완료", data: data.done, backgroundColor:"#22c55e", borderRadius:4 },
+        { label:"진행중", data: data.ing, backgroundColor:"#f59e0b", borderRadius:0 },
+        { label:"미시작", data: data.none, backgroundColor:"#e2e8f0", borderRadius:4 },
+      ]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      plugins: { legend: { position:"bottom", labels:{ font:{size:12} } } },
+      scales: {
+        x: { stacked:true, grid:{color:"#f1f5f9"} },
+        y: { stacked:true, grid:{display:false}, ticks:{font:{size:12}} }
+      }
+    }
+  });
+}
+
+function makeBarV(id, data) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext("2d");
+  charts[id] = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: data.labels,
+      datasets: [
+        { label:"완료", data: data.done, backgroundColor:"#22c55e", borderRadius:4 },
+        { label:"진행중", data: data.ing, backgroundColor:"#f59e0b", borderRadius:0 },
+        { label:"미시작", data: data.none, backgroundColor:"#e2e8f0", borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position:"bottom", labels:{font:{size:12}} } },
+      scales: {
+        x: { stacked:true, grid:{display:false}, ticks:{font:{size:12}} },
+        y: { stacked:true, grid:{color:"#f1f5f9"} }
+      }
+    }
+  });
+}
+
+function makeDoughnut(id, data) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext("2d");
+  charts[id] = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: data.labels,
+      datasets: [{ data: data.values, backgroundColor: COLORS6.slice(0, data.labels.length) }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position:"bottom", labels:{font:{size:12}} } }
+    }
+  });
+}
+
+async function loadData() {
+  document.getElementById("loading").style.display = "block";
+  document.getElementById("dashboard").style.display = "none";
+  try {
+    const res = await fetch(CSV_URL + "&t=" + Date.now());
+    const text = await res.text();
+    const rows = parseCSV(text);
+    if (rows.length === 0) throw new Error("데이터 없음");
+
+    const today = new Date();
+    const daysSince = Math.floor((today - LAUNCH) / 86400000);
+    const total = rows.length;
+    const done = rows.filter(r => (r[COL.ax]||"").trim() === "완료").length;
+    const ing = rows.filter(r => { const ax=(r[COL.ax]||"").trim(); return ax && ax !== "완료"; }).length;
+    const caliber = rows.filter(r => (r[COL.caliber]||"").trim() !== "").length;
+    const rate = Math.round(done/total*100);
+    const target80 = Math.ceil(total*0.8);
+    const rem = Math.max(0, target80 - done);
+    const dailyRate = daysSince > 0 ? done/daysSince : 0;
+    const daysTo80 = dailyRate > 0 && rem > 0 ? Math.ceil(rem/dailyRate) : 0;
+    const pred = daysTo80 > 0 ? new Date(today.getTime()+daysTo80*86400000) : null;
+    const predStr = rem === 0 ? "🎉 달성 완료!" : pred ? `${pred.getMonth()+1}월 ${pred.getDate()}일 예상` : "집계 중";
+
+    // 헤더
+    document.getElementById("subtitle").textContent = `최종 업데이트: ${new Date().toLocaleTimeString("ko-KR")} · 전체 ${total}명`;
+    document.getElementById("d-day").textContent = `D+${Math.max(0, daysSince)}`;
+    document.getElementById("predict80").textContent = predStr;
+
+    // 지표
+    document.getElementById("s-total").textContent = total+"명";
+    document.getElementById("s-done").textContent = done+"명";
+    document.getElementById("s-done-rate").textContent = `달성율 ${rate}%`;
+    document.getElementById("s-progress").textContent = ing+"명";
+    document.getElementById("s-progress-rate").textContent = Math.round(ing/total*100)+"%";
+    document.getElementById("s-caliber").textContent = caliber+"명";
+
+    // 프로그레스
+    document.getElementById("prog-text").textContent = `${done} / ${target80}명`;
+    document.getElementById("prog-bar").style.width = Math.min(100, rate/80*100)+"%";
+    document.getElementById("prog-bar").style.background = rate >= 80 ? "#22c55e" : "#6366f1";
+    document.getElementById("prog-left").textContent = `현재 ${rate}%`;
+    document.getElementById("prog-right").textContent = rem > 0 ? `${rem}명 더 필요` : "🎉 달성!";
+
+    // 차트
+    const ageRows = rows.map(r => [...r, getAge(r[COL.birth])]);
+    const AGE_IDX = r => r[8];
+
+    makeBarH("chart-campus", axByKey(rows, COL.campus, COL.ax));
+    makeBarH("chart-team", axByKey(rows, COL.team, COL.ax));
+    makeDoughnut("chart-gender", groupCount(rows, COL.gender));
+    makeDoughnut("chart-age", groupCount(ageRows, 8));
+    makeBarV("chart-age-ax", axByKey(ageRows, 8, COL.ax));
+    makeBarV("chart-gender-ax", axByKey(rows, COL.gender, COL.ax));
+
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+  } catch(e) {
+    document.getElementById("loading").innerHTML = `⚠️ 데이터 로드 실패: ${e.message}<br><br><button onclick="loadData()" style="padding:8px 20px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;">다시 시도</button>`;
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
